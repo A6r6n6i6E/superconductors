@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
 import re
+import itertools
 
 # Elektroujemność (Pauling scale)
 ELECTRONEGATIVITY = {
@@ -168,9 +169,9 @@ right_legend = ax.legend(
 st.pyplot(fig)
 
 st.markdown("---")
-st.header("🔍 Search Compounds by Parameters")
+st.header("🔍 Search in All Possible Element Combinations")
 
-# Użytkownik podaje zakresy
+# Zakresy od użytkownika
 col1, col2 = st.columns(2)
 with col1:
     hf_min = st.number_input("Hf min", min_value=0.0, max_value=1.0, value=0.6, step=0.01)
@@ -181,19 +182,41 @@ with col2:
     ratio_max = st.number_input("Mx/MH max", min_value=0.0, value=50.0, step=0.1)
     en_max = st.number_input("Electronegativity max", min_value=0.0, max_value=5.0, value=2.3, step=0.01)
 
-# Filtrujemy dane
-filtered_df = df[
-    (df['hf'] >= hf_min) & (df['hf'] <= hf_max) &
-    (df['mass'] >= ratio_min) & (df['mass'] <= ratio_max) &
-    (df['en'] >= en_min) & (df['en'] <= en_max)
-].copy()
+# Definicje pierwiastków (tu możesz wstawić pełne słowniki z drugiego programu)
+elements = [el for el in ELECTRONEGATIVITY.keys() if el != "H" and ELECTRONEGATIVITY[el] is not None]
 
-# Dodaj kolumnę z Lp
-filtered_df.insert(0, "Lp", range(1, len(filtered_df) + 1))
+# Zakresy ilości atomów
+x_values = [1, 2, 3]
+y_values = [1, 2, 3]
+z_values = [2, 4, 6, 8, 9, 10, 12]
 
-# Wyświetlenie tabeli
-if not filtered_df.empty:
-    st.markdown(f"### 📊 Found {len(filtered_df)} compounds")
-    st.dataframe(filtered_df[['formula', 'hf', 'mass', 'en']])
+def calc_en(A, B, x, y, z):
+    return (x * ELECTRONEGATIVITY[A] + y * ELECTRONEGATIVITY[B] + z * ELECTRONEGATIVITY["H"]) / (x + y + z)
+
+def calc_hf(x, y, z):
+    return z / (x + y + z)
+
+def calc_mass_ratio(A, B, x, y, z):
+    return (x * ATOMIC_MASSES[A] + y * ATOMIC_MASSES[B]) / (z * ATOMIC_MASSES["H"])
+
+compound_list = []
+
+for A, B in itertools.combinations(elements, 2):
+    for x, y, z in itertools.product(x_values, y_values, z_values):
+        chi = calc_en(A, B, x, y, z)
+        hf_val = calc_hf(x, y, z)
+        mr_val = calc_mass_ratio(A, B, x, y, z)
+        if hf_min <= hf_val <= hf_max and ratio_min <= mr_val <= ratio_max and en_min <= chi <= en_max:
+            formula_str = f"{A}{x}{B}{y}H{z}"
+            in_csv = formula_str in df['formula'].values
+            compound_list.append((formula_str, chi, hf_val, mr_val, "✅" if in_csv else "❌"))
+
+# Tworzymy DataFrame
+results_df = pd.DataFrame(compound_list, columns=["Formula", "Electronegativity", "Hf", "Mx/MH", "In CSV"])
+
+if not results_df.empty:
+    st.markdown(f"### 📊 Found {len(results_df)} possible compounds")
+    st.dataframe(results_df)
+    st.download_button("Download CSV", results_df.to_csv(index=False), "possible_compounds.csv", "text/csv")
 else:
     st.warning("No compounds match the selected criteria.")
