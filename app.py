@@ -74,8 +74,8 @@ def mass_to_marker(mass):
 
 # Streamlit setup
 st.set_page_config("Tc vs Electronegativity", layout="centered")
-st.title("🧪 Tc vs. Electronegativity")
-st.markdown("Colors = Hf | Shapes = Mass Ratio (Mx/MH)")
+st.title("🧪 Assessing Chemical Composition for Superconducting Hydrides")
+st.markdown("Data-Driven Modeling of Superconducting Hydrides: From Composition to Critical Parameters")
 
 # Load CSV
 try:
@@ -164,6 +164,36 @@ right_legend = ax.legend(
     title="Legend"
 )
 
-
 # Show plot
 st.pyplot(fig)
+
+st.markdown("---")
+st.header("🔍 Search Compounds by Parameters")
+
+# Użytkownik podaje zakresy
+col1, col2 = st.columns(2)
+with col1:
+    hf_min = st.number_input("Hf min", min_value=0.0, max_value=1.0, value=0.6, step=0.01)
+    ratio_min = st.number_input("Mx/MH min", min_value=0.0, value=0.0, step=0.1)
+    en_min = st.number_input("Electronegativity min", min_value=0.0, max_value=5.0, value=1.8, step=0.01)
+with col2:
+    hf_max = st.number_input("Hf max", min_value=0.0, max_value=1.0, value=1.0, step=0.01)
+    ratio_max = st.number_input("Mx/MH max", min_value=0.0, value=50.0, step=0.1)
+    en_max = st.number_input("Electronegativity max", min_value=0.0, max_value=5.0, value=2.3, step=0.01)
+
+# Filtrujemy dane
+filtered_df = df[
+    (df['hf'] >= hf_min) & (df['hf'] <= hf_max) &
+    (df['mass'] >= ratio_min) & (df['mass'] <= ratio_max) &
+    (df['en'] >= en_min) & (df['en'] <= en_max)
+].copy()
+
+# Dodaj kolumnę z Lp
+filtered_df.insert(0, "Lp", range(1, len(filtered_df) + 1))
+
+# Wyświetlenie tabeli
+if not filtered_df.empty:
+    st.markdown(f"### 📊 Found {len(filtered_df)} compounds")
+    st.dataframe(filtered_df[['formula', 'hf', 'mass', 'en']])
+else:
+    st.warning("No compounds match the selected criteria.")
