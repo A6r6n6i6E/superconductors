@@ -326,7 +326,8 @@ print(f"Compounds in CSV: {in_csv_count}")
 print(f"Compounds NOT in CSV: {not_in_csv_count}")
 
 # --- Footer: Credits and Funding ---
-st.markdown("---")
+#st.markdown("---")
+
 
 # Optional: Add some space at the bottom
 st.markdown("<br><br>", unsafe_allow_html=True)
