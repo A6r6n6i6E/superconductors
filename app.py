@@ -38,10 +38,20 @@ ATOMIC_MASSES = {
     "Fm": 257, "Md": 258, "No": 259, "Lr": 266
 }
 
-# --- Funkcje pomocnicze ---
+# Funkcje pomocnicze
+
+def clean_formula(formula: str) -> str:
+    """
+    Usuwa '1' występujące bezpośrednio po symbolu pierwiastka, ale nie usuwa '1' będących częścią
+    większej liczby (np. '10', '12').
+    Przykłady:
+      Li1Be1H8 -> LiBeH8
+      C1H10 -> CH10
+      LiBeH8 -> LiBeH8 (bez zmian)
+    """
+    return re.sub(r'([A-Z][a-z]?)(?:1)(?!\d)', r'\1', formula)
 
 def parse_formula(formula):
-    """Parsuje wzór chemiczny do słownika element:ilość."""
     matches = re.findall(r'([A-Z][a-z]*)(\d*\.?\d*)', formula)
     return {el: float(count) if count else 1.0 for el, count in matches}
 
@@ -60,12 +70,15 @@ def compute_mass_ratio(comp):
     return m_X / m_H if m_H else 0
 
 def determine_region(en):
+    # Nowy zakres S4
     if 2.00 <= en <= 2.10:
         return "S1"
     elif (1.90 <= en < 2.00) or (2.10 < en <= 2.20):
         return "S2"
     elif (1.80 <= en < 1.90) or (2.20 < en <= 2.30):
         return "S3"
+    elif (1.70 <= en < 1.80) or (2.30 < en <= 2.40):
+        return "S4"
     return "Outside"
 
 def hf_to_color(hf):
@@ -81,35 +94,40 @@ def mass_to_marker(mass):
     elif mass < 30: return '^'
     return 'D'
 
-def clean_formula(formula):
-    """Usuwa jedynki z nazwy związku np. Li1Be1H8 -> LiBeH8.
-    Nie usuwa liczb większych niż 1, np. H10 zostaje."""
-    def repl(match):
-        el = match.group(1)
-        num = match.group(2)
-        if num == '1' or num == '':
-            return el
-        return f"{el}{num}"
-    return re.sub(r'([A-Z][a-z]*)(\d*)', repl, formula)
+# Gradient koloru regionów (alfa przezroczystości)
+REGION_COLORS = {
+    "S1": "rgba(255, 0, 0, 0.3)",           # transparentny czerwony
+    "S2": "rgba(255, 165, 0, 0.3)",       # transparentny pomarańczowy
+    "S3": "rgba(255, 230, 0, 0.3)",        # transparentny żółty
+    "S4": "rgba(255, 255, 0, 0.25)"      # transparentny jasnożółty
+}
+
+# Mapowanie do matplotlib (konwersja rgba na tuple alfa)
+def rgba_to_mpl_color(rgba_str):
+    parts = rgba_str.replace("rgba(", "").replace(")", "").split(",")
+    r, g, b, a = [float(p.strip()) for p in parts]
+    return (r/255, g/255, b/255, a)
 
 # --- Streamlit setup ---
 
 st.set_page_config("Tc vs Electronegativity", layout="centered")
-st.title("🧪 Assessing Chemical Composition for Superconducting Hydrides")
+st.title("🧪 Assessing Chemical Composition for Ternary SuperHydrides")
 st.markdown("Data-Driven Modeling of Superconducting Hydrides: From Composition to Critical Parameters")
 
 # --- Wczytanie CSV ---
-
+# Load CSV
 try:
     df = pd.read_csv("Data-ternary.csv")
-    # Zadbajmy, aby formuły w bazie były bez jedynek (na wszelki wypadek)
-    df['formula_clean'] = df['formula'].apply(clean_formula)
+    # Dodajemy kolumnę z oczyszczonym formatem formuły (na wypadek)
+    if 'formula' in df.columns:
+        df['formula_clean'] = df['formula'].astype(str).apply(clean_formula)
+    else:
+        df['formula_clean'] = ""
 except FileNotFoundError:
     st.error("❌ File `Data-ternary.csv` not found.")
     st.stop()
 
-# --- Wprowadzanie wzoru użytkownika ---
-
+# Input
 formula = st.text_input("Enter compound formula (e.g., AcAlH8):", "")
 
 if formula:
@@ -127,34 +145,83 @@ if formula:
     - **Region**: `{region}`
     """)
 
-# --- Wykres Tc vs Electronegativity ---
-
+# Plot
 fig, ax = plt.subplots(figsize=(10, 6))
 
-# Regiony na wykresie
-ax.axvspan(2.00, 2.10, color='red', alpha=0.2, label="S1")
-ax.axvspan(1.90, 2.00, color='orange', alpha=0.15, label="S2")
-ax.axvspan(2.10, 2.20, color='orange', alpha=0.15)
-ax.axvspan(1.80, 1.90, color='yellow', alpha=0.1, label="S3")
-ax.axvspan(2.20, 2.30, color='yellow', alpha=0.1)
+# Region highlighting with new S4
+ax.axvspan(2.00, 2.10, color=rgba_to_mpl_color(REGION_COLORS["S1"]), label="S1: High probability of Tc > 300 K")
+ax.axvspan(1.90, 2.00, color=rgba_to_mpl_color(REGION_COLORS["S2"]), label="S2: High probability of Tc > 200 K")
+ax.axvspan(2.10, 2.20, color=rgba_to_mpl_color(REGION_COLORS["S2"]))
+ax.axvspan(1.80, 1.90, color=rgba_to_mpl_color(REGION_COLORS["S3"]), label="S3: Low probability of Tc > 200 K")
+ax.axvspan(2.20, 2.30, color=rgba_to_mpl_color(REGION_COLORS["S3"]))
+ax.axvspan(1.70, 1.80, color=rgba_to_mpl_color(REGION_COLORS["S4"]), label="S4: Very low probability of high-Tc")
+ax.axvspan(2.30, 2.40, color=rgba_to_mpl_color(REGION_COLORS["S4"]))
 
-# Punkty z CSV
+# Data points
 for _, row in df.iterrows():
     color = hf_to_color(row['hf'])
     marker = mass_to_marker(row['mass'])
     ax.scatter(row['en'], row['Tc'], color=color, marker=marker, edgecolor='black', s=70)
 
-# Punkt nowego związku
+
+
+
+# Tworzymy adnotację, która początkowo jest niewidoczna
+annot = ax.annotate("", xy=(0,0), xytext=(15,15), textcoords="offset points",
+                    bbox=dict(boxstyle="round", fc="w"),
+                    arrowprops=dict(arrowstyle="->"))
+annot.set_visible(False)
+
+# Dane punktów do tooltipów
+scatters = []
+labels = []
+
+for _, row in df.iterrows():
+    color = hf_to_color(row['hf'])
+    marker = mass_to_marker(row['mass'])
+    sc = ax.scatter(row['en'], row['Tc'], color=color, marker=marker, edgecolor='black', s=70)
+    scatters.append(sc)
+    labels.append(row['formula_clean'] if 'formula_clean' in row else row.get('formula', 'Unknown'))
+
+def update_annot(ind, sc):
+    pos = sc.get_offsets()[ind["ind"][0]]
+    annot.xy = pos
+    text = labels[ind["ind"][0]]
+    annot.set_text(text)
+    annot.get_bbox_patch().set_facecolor("yellow")
+    annot.get_bbox_patch().set_alpha(0.8)
+
+def hover(event):
+    visible = annot.get_visible()
+    if event.inaxes == ax:
+        for sc in scatters:
+            cont, ind = sc.contains(event)
+            if cont:
+                update_annot(ind, sc)
+                annot.set_visible(True)
+                fig.canvas.draw_idle()
+                return
+    if visible:
+        annot.set_visible(False)
+        fig.canvas.draw_idle()
+
+fig.canvas.mpl_connect("motion_notify_event", hover)
+
+
+
+
+# New compound
 if formula:
     ax.axvline(en, color='red', linestyle='--', linewidth=2, label=f"{formula} (new)")
 
-ax.set_xlim(1.0, 3.2)
+# Axis and labels
+ax.set_xlim(1.0, 3.25)
 ax.set_ylim(0, 500)
-ax.set_xlabel("Average Electronegativity")
+ax.set_xlabel("Electronegativity")
 ax.set_ylabel("Tc (K)")
 ax.set_title("Tc vs Electronegativity with Hf and Mass Ratio")
 
-# Legendy
+# Legend – shapes and colors
 hf_legend = [
     mpatches.Patch(color="#004d00", label="Hf ≥ 0.9"),
     mpatches.Patch(color="#1a661a", label="0.8 ≤ Hf < 0.9"),
@@ -170,40 +237,52 @@ mass_legend = [
     mlines.Line2D([], [], color='black', marker='D', linestyle='None', markersize=10, label='Mx/MH ≥ 30'),
 ]
 
-line_legend = mlines.Line2D([], [], color='red', linestyle='--', label="Your compound")
-
 region_legend = [
-    mpatches.Patch(color='red', alpha=0.2, label='S1'),
-    mpatches.Patch(color='orange', alpha=0.15, label='S2'),
-    mpatches.Patch(color='yellow', alpha=0.1, label='S3')
+    mpatches.Patch(color=rgba_to_mpl_color(REGION_COLORS["S1"]), label='S1: High probability of Tc > 300 K'),
+    mpatches.Patch(color=rgba_to_mpl_color(REGION_COLORS["S2"]), label='S2: High probability of Tc > 200 K'),
+    mpatches.Patch(color=rgba_to_mpl_color(REGION_COLORS["S3"]), label='S3: Low probability of Tc > 200 K'),
+    mpatches.Patch(color=rgba_to_mpl_color(REGION_COLORS["S4"]), label='S4: Very low probability of Tc > 200 K'),
 ]
 
-left_legend = ax.legend(handles=region_legend + [line_legend], loc='upper left', fontsize=9, title="Region")
+line_legend = mlines.Line2D([], [], color='red', linestyle='--', label="Your compound")
+
+# Dwie osobne legendy
+left_legend = ax.legend(handles=region_legend, loc='upper left', fontsize=10, title="Regions")
 ax.add_artist(left_legend)
 
-right_legend = ax.legend(
-    handles=hf_legend + mass_legend + [line_legend],
-    loc='upper right',
-    fontsize=9,
-    title="Legend"
-)
+# Pokazujemy legendę czerwonej linii tylko jeśli formuła wpisana
+if formula:
+    right_legend = ax.legend(
+        handles=hf_legend + mass_legend + [line_legend],
+        loc='upper right',
+        fontsize=10,
+        title="Legend"
+    )
+else:
+    right_legend = ax.legend(
+        handles=hf_legend + mass_legend,
+        loc='upper right',
+        fontsize=10,
+        title="Legend"
+    )
 
+# Show plot
 st.pyplot(fig)
 
 # --- Sekcja: Szukanie w pełnej przestrzeni kombinacji ---
 
 st.markdown("---")
-st.header("🔍 Search Promising Hydrides in All Possible Element Combinations")
+st.header("🔍 Search Promising Ternary Hydrides in All Possible Element Combinations")
 
 col1, col2 = st.columns(2)
 with col1:
-    hf_min = st.number_input("Hf_min", min_value=0.0, max_value=1.0, value=0.6, step=0.01)
+    hf_min = st.number_input("Hf_min", min_value=0.0, max_value=1.0, value=0.8, step=0.01)
     ratio_min = st.number_input("Mx/MH_min", min_value=0.0, value=0.0, step=0.1)
-    en_min = st.number_input("Electronegativity_min", min_value=0.0, max_value=5.0, value=1.8, step=0.01)
+    en_min = st.number_input("Electronegativity_min", min_value=0.0, max_value=5.0, value=2.0, step=0.01)
 with col2:
     hf_max = st.number_input("Hf_max", min_value=0.0, max_value=1.0, value=1.0, step=0.01)
-    ratio_max = st.number_input("Mx/MH_max", min_value=0.0, value=50.0, step=0.1)
-    en_max = st.number_input("Electronegativity_max", min_value=0.0, max_value=5.0, value=2.3, step=0.01)
+    ratio_max = st.number_input("Mx/MH_max", min_value=0.0, value=25.0, step=0.1)
+    en_max = st.number_input("Electronegativity_max", min_value=0.0, max_value=5.0, value=2.1, step=0.01)
 
 elements = [el for el in ELECTRONEGATIVITY.keys() if el != "H" and ELECTRONEGATIVITY[el] is not None]
 x_values = [1, 2, 3]
@@ -225,7 +304,7 @@ for A, B in itertools.combinations(elements, 2):
             compound_list.append((formula_clean, chi, hf_val, mr_val, "✅" if in_csv else "❌"))
 
 # Stworzenie DataFrame
-results_df = pd.DataFrame(compound_list, columns=["Formula", "Electronegativity", "Hf", "Mx/MH", "In CSV"])
+results_df = pd.DataFrame(compound_list, columns=["Formula", "Electronegativity", "Hf", "Mx/MH", "In Database"])
 
 # Podsumowanie
 st.markdown(f"### 📊 Found {len(results_df)} possible compounds matching criteria")
@@ -237,11 +316,36 @@ else:
     st.warning("No compounds match the selected criteria.")
 
 # --- Logowanie (opcjonalne) w konsoli dla kontroli (możesz wyłączyć później) ---
-in_csv_count = results_df['In CSV'].value_counts().get("✅", 0)
-not_in_csv_count = results_df['In CSV'].value_counts().get("❌", 0)
+in_csv_count = results_df['In Database'].value_counts().get("✅", 0)
+not_in_csv_count = results_df['In Database'].value_counts().get("❌", 0)
 total_combinations = sum(1 for _ in itertools.product(elements, repeat=2)) * len(x_values) * len(y_values) * len(z_values)
 
 print(f"Total combinations (approx): {total_combinations}")
 print(f"Filtered combinations: {len(results_df)}")
 print(f"Compounds in CSV: {in_csv_count}")
 print(f"Compounds NOT in CSV: {not_in_csv_count}")
+
+# --- Footer: Credits and Funding ---
+st.markdown("---")
+
+# Optional: Add some space at the bottom
+st.markdown("<br><br>", unsafe_allow_html=True)
+
+with st.sidebar:
+    st.markdown("### ℹ️ Application Information")
+    st.markdown(
+        """
+        This application is based on the publication:<br>
+        <b>I. A. Wrona, P. Niegodajew, A. P. Durajski</b>, *High-temperature ternary superhydrides: A strategic roadmap to optimal superconducting parameters*,<br>
+        <i>Adv. Funct. Mater.</i> 35, 2423680 (2025). **Please cite this work if you use this tool in your research.**<br><br>
+        This research is funded by the <i>National Science Centre (Poland)</i><br>
+        under Project No. 2022/47/B/ST3/00622.<br><br>
+        Contact person:<br>
+        <b>Artur Durajski</b><br>
+        Częstochowa University of Technology<br>
+        Email: <a href="mailto:artur.durajski@pcz.pl">artur.durajski@pcz.pl</a>
+        """,
+        unsafe_allow_html=True
+    )
+
+
