@@ -327,22 +327,6 @@ print(f"Compounds NOT in CSV: {not_in_csv_count}")
 
 # --- Footer: Credits and Funding ---
 st.markdown("---")
-st.markdown("""
-### 📚 Acknowledgments
-
-This application was developed based on the research published in:
-**I. A. Wrona, P. Niegodajew, A. P. Durajski**,
-[High-temperature ternary superhydrides: A strategic roadmap to optimal superconducting parameters](https://onlinelibrary.wiley.com/doi/10.1002/adfm.202423680),
-*Advanced Functional Materials* **2025**, 35, 2423680.
-**Please cite this work if you use this tool in your research.**
-
-The project is financially supported by the **National Science Centre (Poland)** under Project No. 2022/47/B/ST3/00622.
-
-**Contact:**
-Artur Durajski
-Częstochowa University of Technology
-📧 artur.durajski@pcz.pl
-""")
 
 # Optional: Add some space at the bottom
 st.markdown("<br><br>", unsafe_allow_html=True)
