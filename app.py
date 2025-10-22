@@ -346,7 +346,7 @@ for A, B in itertools.combinations(elements, 2):
             formula_raw = f"{A}{x}{B}{y}H{z}"
             formula_clean = clean_formula(formula_raw)
             normalized_db = df['formula_clean'].apply(normalize_formula)
-            in_csv = normalize_formula(formula_clean) in normalized_db.values
+            in_csv = normalize_formula(formula_clean) in normalized_db_set
             compound_list.append((formula_clean, chi, hf_val, mr_val, "✅" if in_csv else "❌"))
 
 # Stworzenie DataFrame
