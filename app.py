@@ -148,10 +148,6 @@ except FileNotFoundError:
 
 # Input
 formula = st.text_input("Enter compound formula (e.g., AcAlH8):", "")
-if formula:
-    formula = clean_formula(formula)
-    formula = normalize_formula(formula)  # <--- NOWOŚĆ
-
 
 if formula:
     comp = parse_formula(formula)
