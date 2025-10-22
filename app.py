@@ -309,11 +309,11 @@ with col2:
 
 elements = [el for el in ELECTRONEGATIVITY.keys() if el != "H" and ELECTRONEGATIVITY[el] is not None]
 # --- Wybór zakresów stechiometrii ---
-st.markdown("### ⚙️ Stoichiometry ranges (AₓBᵧH_z)")
+with st.expander("⚙️ Stoichiometry ranges (A_xB_yH_z)", expanded=False):
+    x_raw = st.text_input("Values of x (comma-separated):", "1,2,3")
+    y_raw = st.text_input("Values of y (comma-separated):", "1,2,3")
+    z_raw = st.text_input("Values of z (comma-separated):", "2,4,6,8,9,10,12")
 
-x_raw = st.text_input("Values of x (comma-separated):", "1,2,3")
-y_raw = st.text_input("Values of y (comma-separated):", "1,2,3")
-z_raw = st.text_input("Values of z (comma-separated):", "2,4,6,8,9,10,12")
 
 def parse_int_list(raw):
     """Konwertuje wpisany tekst (np. '1,2,3') na listę intów."""
