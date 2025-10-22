@@ -332,6 +332,9 @@ if not z_values: z_values = [2, 4, 6, 8, 9, 10, 12]
 
 compound_list = []
 
+normalized_db = df['formula_clean'].apply(normalize_formula)
+normalized_db_set = set(normalized_db.values)
+
 for A, B in itertools.combinations(elements, 2):
     for x, y, z in itertools.product(x_values, y_values, z_values):
         chi = (x * ELECTRONEGATIVITY[A] + y * ELECTRONEGATIVITY[B] + z * ELECTRONEGATIVITY["H"]) / (x + y + z)
@@ -341,7 +344,6 @@ for A, B in itertools.combinations(elements, 2):
         if hf_min <= hf_val <= hf_max and ratio_min <= mr_val <= ratio_max and en_min <= chi <= en_max:
             formula_raw = f"{A}{x}{B}{y}H{z}"
             formula_clean = clean_formula(formula_raw)
-            normalized_db = df['formula_clean'].apply(normalize_formula)
             in_csv = normalize_formula(formula_clean) in normalized_db_set
             compound_list.append((formula_clean, chi, hf_val, mr_val, "✅" if in_csv else "❌"))
 
