@@ -308,9 +308,31 @@ with col2:
     en_max = st.number_input("Electronegativity_max", min_value=0.0, max_value=5.0, value=2.1, step=0.01)
 
 elements = [el for el in ELECTRONEGATIVITY.keys() if el != "H" and ELECTRONEGATIVITY[el] is not None]
-x_values = [1, 2, 3]
-y_values = [1, 2, 3]
-z_values = [2, 4, 6, 8, 9, 10, 12]
+# --- Wybór zakresów stechiometrii ---
+st.markdown("### ⚙️ Stoichiometry ranges (AₓBᵧH_z)")
+
+x_raw = st.text_input("Values of x (comma-separated):", "1,2,3")
+y_raw = st.text_input("Values of y (comma-separated):", "1,2,3")
+z_raw = st.text_input("Values of z (comma-separated):", "2,4,6,8,9,10,12")
+
+def parse_int_list(raw):
+    """Konwertuje wpisany tekst (np. '1,2,3') na listę intów."""
+    values = []
+    for v in raw.split(","):
+        v = v.strip()
+        if v.isdigit():
+            values.append(int(v))
+    return values
+
+x_values = parse_int_list(x_raw)
+y_values = parse_int_list(y_raw)
+z_values = parse_int_list(z_raw)
+
+# Jeśli użytkownik zostawi pole puste, użyj domyślnych
+if not x_values: x_values = [1, 2, 3]
+if not y_values: y_values = [1, 2, 3]
+if not z_values: z_values = [2, 4, 6, 8, 9, 10, 12]
+
 
 compound_list = []
 
