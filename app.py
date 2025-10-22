@@ -51,6 +51,25 @@ def clean_formula(formula: str) -> str:
     """
     return re.sub(r'([A-Z][a-z]?)(?:1)(?!\d)', r'\1', formula)
 
+def normalize_formula(formula: str) -> str:
+    """
+    Normalizuje formułę do standardu: A < B < H
+    Przykład: BeLuH8 -> LuBeH8, CaAlH12 -> AlCaH12
+    """
+    comp = parse_formula(formula)
+    # wyciągnij A i B (wszystkie inne niż H)
+    non_h = [(el, comp[el]) for el in comp if el != "H"]
+    non_h_sorted = sorted(non_h, key=lambda x: x[0])  # sort alfabetycznie
+    h_count = comp.get("H", 0)
+
+    # złóż z powrotem
+    normalized = ""
+    for el, count in non_h_sorted:
+        normalized += f"{el}{int(count) if count != 1 else ''}"
+    if h_count:
+        normalized += f"H{int(h_count) if h_count != 1 else ''}"
+    return normalized
+
 def parse_formula(formula):
     matches = re.findall(r'([A-Z][a-z]*)(\d*\.?\d*)', formula)
     return {el: float(count) if count else 1.0 for el, count in matches}
@@ -129,6 +148,10 @@ except FileNotFoundError:
 
 # Input
 formula = st.text_input("Enter compound formula (e.g., AcAlH8):", "")
+if formula:
+    formula = clean_formula(formula)
+    formula = normalize_formula(formula)  # <--- NOWOŚĆ
+
 
 if formula:
     comp = parse_formula(formula)
@@ -300,7 +323,8 @@ for A, B in itertools.combinations(elements, 2):
         if hf_min <= hf_val <= hf_max and ratio_min <= mr_val <= ratio_max and en_min <= chi <= en_max:
             formula_raw = f"{A}{x}{B}{y}H{z}"
             formula_clean = clean_formula(formula_raw)
-            in_csv = formula_clean in df['formula_clean'].values
+            normalized_db = df['formula_clean'].apply(normalize_formula)
+            in_csv = normalize_formula(formula_clean) in normalized_db.values
             compound_list.append((formula_clean, chi, hf_val, mr_val, "✅" if in_csv else "❌"))
 
 # Stworzenie DataFrame
