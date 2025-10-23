@@ -398,24 +398,23 @@ with st.sidebar:
         Email: <a href="mailto:artur.durajski@pcz.pl">artur.durajski@pcz.pl</a>
         """,
         unsafe_allow_html=True
-
-        # --- Add DOI submission form ---
-st.markdown("---")
-st.subheader("📘 Submit your article DOI")
-
-doi = st.text_input("Enter DOI of your publication to be added to the database:")
-
-if st.button("Submit DOI"):
-    if doi.strip():
-        try:
-            with open("submitted_dois.txt", "a") as f:
-                f.write(doi.strip() + "\n")
-            st.success("✅ DOI successfully submitted!")
-        except Exception as e:
-            st.error(f"⚠️ Could not save DOI: {e}")
-    else:
-        st.warning("Please enter a valid DOI.")
-
     )
+
+    # --- Add DOI submission form ---
+    st.markdown("---")
+    st.subheader("📘 Submit your article DOI")
+
+    doi = st.text_input("Enter DOI of your publication to be added to the database:")
+
+    if st.button("Submit DOI"):
+        if doi.strip():
+            try:
+                with open("submitted_dois.txt", "a") as f:
+                    f.write(doi.strip() + "\n")
+                st.success("✅ DOI successfully submitted!")
+            except Exception as e:
+                st.error(f"⚠️ Could not save DOI: {e}")
+        else:
+            st.warning("Please enter a valid DOI.")
 
 
