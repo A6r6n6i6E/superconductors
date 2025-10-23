@@ -380,16 +380,60 @@ print(f"Compounds NOT in CSV: {not_in_csv_count}")
 # --- Footer: Credits and Funding ---
 st.markdown("---")
 
-# Optional: Add some space at the bottom
+import requests
+import base64
+import json
+import streamlit as st
+
+def append_doi_to_github(doi_text):
+    """Append a DOI line to a GitHub file using the API and Streamlit secrets."""
+    token = st.secrets["GITHUB_TOKEN"]
+    repo = st.secrets["GITHUB_REPO"]
+    filename = st.secrets["GITHUB_FILE"]
+    username = st.secrets["GITHUB_USERNAME"]
+
+    headers = {"Authorization": f"token {token}"}
+    url = f"https://api.github.com/repos/{repo}/contents/{filename}"
+
+    # Get current content of the file
+    r = requests.get(url, headers=headers)
+    if r.status_code == 200:
+        content = r.json()
+        sha = content["sha"]
+        old_text = base64.b64decode(content["content"]).decode("utf-8")
+        new_text = old_text + doi_text.strip() + "\n"
+    else:
+        # If file doesn't exist yet
+        sha = None
+        new_text = doi_text.strip() + "\n"
+
+    # Prepare commit message
+    data = {
+        "message": f"Add DOI: {doi_text}",
+        "content": base64.b64encode(new_text.encode()).decode(),
+    }
+    if sha:
+        data["sha"] = sha
+
+    # Push update
+    response = requests.put(url, headers=headers, data=json.dumps(data))
+    return response.status_code in (200, 201)
+
+
+# --- Optional space at the bottom of main page ---
 st.markdown("<br><br>", unsafe_allow_html=True)
 
+
+# --- Sidebar section ---
 with st.sidebar:
     st.markdown("### ℹ️ Application Information")
     st.markdown(
         """
         This application is based on the publication:<br>
-        <b>I. A. Wrona, P. Niegodajew, A. P. Durajski</b>, *High-temperature ternary superhydrides: A strategic roadmap to optimal superconducting parameters*,<br>
-        <i>Adv. Funct. Mater.</i> 35, 2423680 (2025). **Please cite this work if you use this tool in your research.**<br><br>
+        <b>I. A. Wrona, P. Niegodajew, A. P. Durajski</b>, 
+        *High-temperature ternary superhydrides: A strategic roadmap to optimal superconducting parameters*,<br>
+        <i>Adv. Funct. Mater.</i> 35, 2423680 (2025). 
+        **Please cite this work if you use this tool in your research.**<br><br>
         This research is funded by the <i>National Science Centre (Poland)</i><br>
         under Project No. 2022/47/B/ST3/00622.<br><br>
         Contact person:<br>
@@ -400,21 +444,20 @@ with st.sidebar:
         unsafe_allow_html=True
     )
 
-    # --- Add DOI submission form ---
+    # --- Add DOI submission form (no page refresh) ---
     st.markdown("---")
     st.subheader("📘 Submit your article DOI")
 
-    doi = st.text_input("Enter DOI of your publication to be added to the database:")
+    with st.form("doi_form", clear_on_submit=True):
+        doi = st.text_input("Enter DOI of your publication to be added to the database:")
+        submitted = st.form_submit_button("Submit DOI", use_container_width=True)
 
-    if st.button("Submit DOI"):
-        if doi.strip():
-            try:
-                with open("submitted_dois.txt", "a") as f:
-                    f.write(doi.strip() + "\n")
-                st.success("✅ DOI successfully submitted!")
-            except Exception as e:
-                st.error(f"⚠️ Could not save DOI: {e}")
-        else:
-            st.warning("Please enter a valid DOI.")
-
-
+        if submitted:
+            if doi.strip():
+                success = append_doi_to_github(doi.strip())
+                if success:
+                    st.success("✅ DOI successfully submitted and saved to GitHub!")
+                else:
+                    st.error("⚠️ Failed to save DOI to GitHub.")
+            else:
+                st.warning("Please enter a valid DOI.")
