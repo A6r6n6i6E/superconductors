@@ -456,7 +456,7 @@ with st.sidebar:
             if doi.strip():
                 success = append_doi_to_github(doi.strip())
                 if success:
-                    st.success("✅ DOI successfully submitted and saved to GitHub!")
+                    st.success("✅ DOI submitted!")
                 else:
                     st.error("⚠️ Failed to save DOI to GitHub.")
             else:
