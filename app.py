@@ -463,9 +463,9 @@ with st.sidebar:
             else:
                 success = append_doi_to_github(doi.strip())
                 if success:
-                    st.session_state["doi_status"] = "✅ DOI successfully submitted and saved to GitHub!"
+                    st.session_state["doi_status"] = "✅ DOI submitted!"
                 else:
-                    st.session_state["doi_status"] = "🚫 Failed to save DOI to GitHub."
+                    st.session_state["doi_status"] = "🚫 Failed to save DOI."
 
     # Wyświetlenie komunikatu bez resetowania reszty aplikacji
     if st.session_state["doi_status"]:
