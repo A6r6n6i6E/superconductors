@@ -444,20 +444,35 @@ with st.sidebar:
         unsafe_allow_html=True
     )
 
-    # --- Add DOI submission form (no page refresh) ---
+
+    # --- Add DOI submission form (no full refresh) ---
     st.markdown("---")
     st.subheader("📘 Submit your article DOI")
+
+    # Utrzymanie statusu między rerunami
+    if "doi_status" not in st.session_state:
+        st.session_state["doi_status"] = ""
 
     with st.form("doi_form", clear_on_submit=True):
         doi = st.text_input("Enter DOI of your publication to be added to the database:")
         submitted = st.form_submit_button("Submit DOI", use_container_width=True)
 
         if submitted:
-            if doi.strip():
+            if not doi.strip():
+                st.session_state["doi_status"] = "⚠️ Please enter a valid DOI."
+            else:
                 success = append_doi_to_github(doi.strip())
                 if success:
-                    st.success("✅ DOI submitted!")
+                    st.session_state["doi_status"] = "✅ DOI successfully submitted and saved to GitHub!"
                 else:
-                    st.error("⚠️ Failed to save DOI to GitHub.")
-            else:
-                st.warning("Please enter a valid DOI.")
+                    st.session_state["doi_status"] = "🚫 Failed to save DOI to GitHub."
+
+    # Wyświetlenie komunikatu bez resetowania reszty aplikacji
+    if st.session_state["doi_status"]:
+        if "✅" in st.session_state["doi_status"]:
+            st.success(st.session_state["doi_status"])
+        elif "⚠️" in st.session_state["doi_status"]:
+            st.warning(st.session_state["doi_status"])
+        else:
+            st.error(st.session_state["doi_status"])
+
